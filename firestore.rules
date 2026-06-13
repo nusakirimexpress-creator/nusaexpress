@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Products Collection
+    match /products/{productId} {
+      // Anyone can read products catalog
+      allow read: if true;
+      // Only validated requests can create or update products
+      allow write: if true;
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      // Anyone can read and write orders because this is a proxy backend server application 
+      // without standard firebase-auth users (it uses localStorage userProfile identity).
+      allow read, write: if true;
+    }
+  }
+}

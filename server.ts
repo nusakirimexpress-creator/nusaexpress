@@ -22,13 +22,76 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// JSON File Database
-const DB_FILE = path.join(process.cwd(), "jasa_shopee_db.json");
+// Firebase Integration
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, getDocFromServer } from 'firebase/firestore';
 
-interface DBState {
-  products: any[];
-  orders: any[];
+let firebaseConfig: any;
+try {
+  const configPath = path.join(process.cwd(), "firebase-applet-config.json");
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf8"));
+  } else if (process.env.FIREBASE_CONFIG) {
+    firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+  } else {
+    firebaseConfig = {
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID,
+      appId: process.env.VITE_FIREBASE_APP_ID || process.env.FIREBASE_APP_ID,
+      apiKey: process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY,
+      authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || process.env.FIREBASE_AUTH_DOMAIN,
+      firestoreDatabaseId: process.env.VITE_FIREBASE_DATABASE_ID || process.env.FIREBASE_DATABASE_ID,
+      storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID || process.env.FIREBASE_MESSAGING_SENDER_ID,
+    };
+  }
+} catch (err) {
+  console.error("Failed to parse Firebase configuration:", err);
 }
+
+const firebaseApp = initializeApp(firebaseConfig);
+const firestoreDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {},
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+// Mandatory connection audit validation
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(firestoreDb, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration.");
+    }
+  }
+}
+testConnection();
 
 const DEFAULT_PRODUCTS = [
   {
@@ -98,42 +161,22 @@ const DEFAULT_PRODUCTS = [
   }
 ];
 
-function initDB(): DBState {
+// Seed products to Firestore helper
+async function seedProductsIfNeeded() {
   try {
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, "utf-8");
-      const db = JSON.parse(data);
-      if (!db.products || db.products.length === 0) {
-        db.products = DEFAULT_PRODUCTS;
+    const pRef = collection(firestoreDb, "products");
+    const snap = await getDocs(pRef);
+    if (snap.empty) {
+      console.log("Seeding initial products into Firestore datastore...");
+      for (const p of DEFAULT_PRODUCTS) {
+        await setDoc(doc(firestoreDb, "products", p.id), p);
       }
-      return db;
     }
-  } catch (e) {
-    console.error("Error reading database file, using empty schema", e);
-  }
-  
-  // write default db
-  const defaultDB: DBState = {
-    products: DEFAULT_PRODUCTS,
-    orders: []
-  };
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(defaultDB, null, 2));
-  } catch (err) {
-    console.error("Error writing default database file", err);
-  }
-  return defaultDB;
-}
-
-const db = initDB();
-
-function saveDB() {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-  } catch (err) {
-    console.error("Error writing database file", err);
+  } catch (error) {
+    console.error("Error seeding products:", error);
   }
 }
+seedProductsIfNeeded();
 
 // Global in-memory state for the currently logged in owner/admin
 let activeAdmin = {
@@ -172,12 +215,30 @@ app.post("/api/active-admin", (req, res) => {
 });
 
 // Get Products
-app.get("/api/products", (req, res) => {
-  res.json({ products: db.products });
+app.get("/api/products", async (req, res, next) => {
+  try {
+    const pRef = collection(firestoreDb, "products");
+    const snap = await getDocs(pRef);
+    let productsList: any[] = [];
+    snap.forEach((doc) => {
+      productsList.push(doc.data());
+    });
+    if (productsList.length === 0) {
+      await seedProductsIfNeeded();
+      return res.json({ products: DEFAULT_PRODUCTS });
+    }
+    res.json({ products: productsList });
+  } catch (e) {
+    try {
+      handleFirestoreError(e, OperationType.GET, "products");
+    } catch (err) {
+      next(err);
+    }
+  }
 });
 
 // Create/Request Product Addition to catalog
-app.post("/api/products", (req, res) => {
+app.post("/api/products", async (req, res, next) => {
   const { name, originalPrice, discountedPrice, imageUrl, shopeeLink, category, description } = req.body;
   
   if (!name || !originalPrice || !shopeeLink) {
@@ -185,9 +246,10 @@ app.post("/api/products", (req, res) => {
   }
 
   const discountVal = originalPrice > discountedPrice ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100) : 0;
+  const newId = `prod-${Date.now()}`;
 
   const newProduct = {
-    id: `prod-${Date.now()}`,
+    id: newId,
     name,
     originalPrice: Number(originalPrice),
     discountedPrice: discountedPrice ? Number(discountedPrice) : Math.round(originalPrice * 0.5),
@@ -200,32 +262,65 @@ app.post("/api/products", (req, res) => {
     description: description || "Ditambahkan oleh pengguna. Siap dioptimisasi checkout voucher murah!"
   };
 
-  db.products.unshift(newProduct);
-  saveDB();
-  res.status(201).json(newProduct);
+  try {
+    await setDoc(doc(firestoreDb, "products", newId), newProduct);
+    res.status(201).json(newProduct);
+  } catch (e) {
+    try {
+      handleFirestoreError(e, OperationType.WRITE, `products/${newId}`);
+    } catch (err) {
+      next(err);
+    }
+  }
 });
 
 // Get orders for a user
-app.get("/api/orders", (req, res) => {
-  const userId = req.query.userId as string;
-  if (!userId) {
-    return res.json({ orders: db.orders }); // fallback all
+app.get("/api/orders", async (req, res, next) => {
+  try {
+    const userId = req.query.userId as string;
+    const ordersCol = collection(firestoreDb, "orders");
+    let snap;
+    if (userId) {
+      const q = query(ordersCol, where("userId", "==", userId));
+      snap = await getDocs(q);
+    } else {
+      snap = await getDocs(ordersCol);
+    }
+    let list: any[] = [];
+    snap.forEach((doc) => {
+      list.push(doc.data());
+    });
+    // Sort descending by createdAt
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json({ orders: list });
+  } catch (e) {
+    try {
+      handleFirestoreError(e, OperationType.GET, "orders");
+    } catch (err) {
+      next(err);
+    }
   }
-  const filtered = db.orders.filter(order => order.userId === userId);
-  res.json({ orders: filtered });
 });
 
 // Get single order
-app.get("/api/orders/:id", (req, res) => {
-  const order = db.orders.find(o => o.id === req.params.id);
-  if (!order) {
-    return res.status(404).json({ error: "Order not found" });
+app.get("/api/orders/:id", async (req, res, next) => {
+  try {
+    const orderSnap = await getDoc(doc(firestoreDb, "orders", req.params.id));
+    if (!orderSnap.exists()) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    res.json(orderSnap.data());
+  } catch (e) {
+    try {
+      handleFirestoreError(e, OperationType.GET, `orders/${req.params.id}`);
+    } catch (err) {
+      next(err);
+    }
   }
-  res.json(order);
 });
 
 // Create Order (Checkout Jastip)
-app.post("/api/orders", (req, res) => {
+app.post("/api/orders", async (req, res, next) => {
   const {
     userId,
     customerName,
@@ -278,76 +373,95 @@ app.post("/api/orders", (req, res) => {
     voucherScenarios: voucherScenarios || []
   };
 
-  db.orders.push(newOrder);
-  saveDB();
-  res.status(201).json(newOrder);
+  try {
+    await setDoc(doc(firestoreDb, "orders", orderId), newOrder);
+    res.status(201).json(newOrder);
+  } catch (e) {
+    try {
+      handleFirestoreError(e, OperationType.WRITE, `orders/${orderId}`);
+    } catch (err) {
+      next(err);
+    }
+  }
 });
 
 // Admin update status order
-app.patch("/api/orders/:id/status", (req, res) => {
+app.patch("/api/orders/:id/status", async (req, res, next) => {
   const { status, trackingNumber } = req.body;
-  const orderIndex = db.orders.findIndex(o => o.id === req.params.id);
-  if (orderIndex === -1) {
-    return res.status(404).json({ error: "Order tidak ditemukan" });
+  const orderRef = doc(firestoreDb, "orders", req.params.id);
+
+  try {
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) {
+      return res.status(404).json({ error: "Order tidak ditemukan" });
+    }
+
+    const order = orderSnap.data();
+    order.status = status || order.status;
+    if (trackingNumber) {
+      order.trackingNumber = trackingNumber;
+    }
+    order.updatedAt = new Date().toISOString();
+
+    // Add a helper system announcement message
+    let statusIndo = "Menunggu pemeriksaan";
+    if (status === "APPROVED") statusIndo = "DISETUJUI (Siap Bayar)";
+    if (status === "WAITING_PAYMENT") statusIndo = "MENUNGGU PEMBAYARAN KONSUMEN";
+    if (status === "PAID") statusIndo = "SUDAH DIBAYAR (Sedang diproses belikan di Shopee oleh tim)";
+    if (status === "ORDERED") statusIndo = "PRODUK TELAH DIPESAN DI SHOPEE";
+    if (status === "SHIPPED") statusIndo = `SEDANG DIKIRIM (No. Resi: ${trackingNumber || 'Segera update'})`;
+    if (status === "COMPLETED") statusIndo = "TRANSAKSI SELESAI (Masukan diterima)";
+    if (status === "CANCELLED") statusIndo = "TRANSAKSI DIBATALKAN";
+
+    order.chats.push({
+      id: `chat-status-${Date.now()}`,
+      sender: "admin",
+      message: `[Sistem Jastip] Status pesanan Anda diperbarui ke: ${statusIndo}`,
+      timestamp: new Date().toISOString()
+    });
+
+    await setDoc(orderRef, order);
+    res.json(order);
+  } catch (e) {
+    try {
+      handleFirestoreError(e, OperationType.WRITE, `orders/${req.params.id}/status`);
+    } catch (err) {
+      next(err);
+    }
   }
-
-  const order = db.orders[orderIndex];
-  order.status = status || order.status;
-  if (trackingNumber) {
-    order.trackingNumber = trackingNumber;
-  }
-  order.updatedAt = new Date().toISOString();
-
-  // Add a helper system announcement message
-  let statusIndo = "Menunggu pemeriksaan";
-  if (status === "APPROVED") statusIndo = "DISETUJUI (Siap Bayar)";
-  if (status === "WAITING_PAYMENT") statusIndo = "MENUNGGU PEMBAYARAN KONSUMEN";
-  if (status === "PAID") statusIndo = "SUDAH DIBAYAR (Sedang diproses belikan di Shopee oleh tim)";
-  if (status === "ORDERED") statusIndo = "PRODUK TELAH DIPESAN DI SHOPEE";
-  if (status === "SHIPPED") statusIndo = `SEDANG DIKIRIM (No. Resi: ${trackingNumber || 'Segera update'})`;
-  if (status === "COMPLETED") statusIndo = "TRANSAKSI SELESAI (Masukan diterima)";
-  if (status === "CANCELLED") statusIndo = "TRANSAKSI DIBATALKAN";
-
-  order.chats.push({
-    id: `chat-status-${Date.now()}`,
-    sender: "admin",
-    message: `[Sistem Jastip] Status pesanan Anda diperbarui ke: ${statusIndo}`,
-    timestamp: new Date().toISOString()
-  });
-
-  db.orders[orderIndex] = order;
-  saveDB();
-  res.json(order);
 });
 
 // Client/Admin send chat message in order
-app.post("/api/orders/:id/chats", async (req, res) => {
+app.post("/api/orders/:id/chats", async (req, res, next) => {
   const { sender, message, senderName } = req.body;
   if (!sender || !message) {
     return res.status(400).json({ error: "Sender and message fields are required" });
   }
 
-  const orderIndex = db.orders.findIndex(o => o.id === req.params.id);
-  if (orderIndex === -1) {
-    return res.status(404).json({ error: "Order not found" });
-  }
+  const orderRef = doc(firestoreDb, "orders", req.params.id);
 
-  const order = db.orders[orderIndex];
-  const newChat = {
-    id: `chat-${Date.now()}`,
-    sender,
-    senderName: sender === 'admin' ? (senderName || activeAdmin.name) : undefined,
-    message,
-    timestamp: new Date().toISOString()
-  };
+  try {
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) {
+      return res.status(404).json({ error: "Order not found" });
+    }
 
-  order.chats.push(newChat);
+    const order = orderSnap.data();
+    const newChat = {
+      id: `chat-${Date.now()}`,
+      sender,
+      senderName: sender === 'admin' ? (senderName || activeAdmin.name) : undefined,
+      message,
+      timestamp: new Date().toISOString()
+    };
 
-  // If user sends a chat, let the Gemini AI act as a smart Support Agent answering their queries immediately!
-  if (sender === "user") {
-    try {
-      const historyCtx = order.chats.slice(-10).map(c => `${c.sender}: ${c.message}`).join("\n");
-      const systemPrompt = `Anda adalah Customer Support AI dari "Jasa Pembelian Shopee Hemat" (Jastip Hemat).
+    order.chats.push(newChat);
+
+    // If user sends a chat, let the Gemini AI act as a smart Support Agent answering their queries immediately!
+    if (sender === "user") {
+      try {
+        const historyCtx = order.chats.slice(-10).map((c: any) => `${c.sender}: ${c.message}`).join("\n");
+        const systemPrompt = `Anda adalah Customer Support AI dari "Jasa Pembelian Shopee Hemat" (Jastip Hemat).
 Aplikasi kami membantu konsumen membeli barang Shopee dengan harga jauh lebih murah menggunakan teknik optimasi voucher ganda, flash sale VIP, Shopee Live 50%, Shopee Video 40%, koin Shopee, dan gratis ongkir kargo tersembunyi.
 Informasi Order Saat Ini:
 - ID Pesanan: ${order.id}
@@ -365,36 +479,42 @@ Terangkan langkah pembayaran atau rincian penghematan bila ditanya.
 Jika status WAITING_PAYMENT atau APPROVED, anjurkan mereka untuk melakukan transfer pembayaran dan konfirmasi di tombol yang disediakan.
 Jika status PENDING, jelaskan bahwa tim admin sedang memverifikasi link Shopee produk tersebut dan akan segera mengaktifkan diskon.`;
 
-      const genResponse = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: `Chat History:\n${historyCtx}\n\nJawablah pesan terakhir user di atas sebagai Customer Support AI:`,
-        config: {
-          systemInstruction: systemPrompt
-        }
-      });
+        const genResponse = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: `Chat History:\n${historyCtx}\n\nJawablah pesan terakhir user di atas sebagai Customer Support AI:`,
+          config: {
+            systemInstruction: systemPrompt
+          }
+        });
 
-      const aiText = genResponse.text || "Halo kak, mohon maaf server kami sibuk sebentar. Tim kami akan segera membantu melayani kakak ya!";
-      order.chats.push({
-        id: `chat-ai-${Date.now()}`,
-        sender: "ai",
-        message: aiText,
-        timestamp: new Date().toISOString()
-      });
-    } catch (aiErr) {
-      console.error("AI chat reply failed:", aiErr);
-      order.chats.push({
-        id: `chat-ai-fallback-${Date.now()}`,
-        sender: "ai",
-        message: "Halo kak, pesan kakak sudah kami terima. Admin kami akan segera mengecek dan merespon pesan kakak secara langsung ya! Terima kasih banyak kabarnya.",
-        timestamp: new Date().toISOString()
-      });
+        const aiText = genResponse.text || "Halo kak, mohon maaf server kami sibuk sebentar. Tim kami akan segera membantu melayani kakak ya!";
+        order.chats.push({
+          id: `chat-ai-${Date.now()}`,
+          sender: "ai",
+          message: aiText,
+          timestamp: new Date().toISOString()
+        });
+      } catch (aiErr) {
+        console.error("AI chat reply failed:", aiErr);
+        order.chats.push({
+          id: `chat-ai-fallback-${Date.now()}`,
+          sender: "ai",
+          message: "Halo kak, pesan kakak sudah kami terima. Admin kami akan segera mengecek dan merespon pesan kakak secara langsung ya! Terima kasih banyak kabarnya.",
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    order.updatedAt = new Date().toISOString();
+    await setDoc(orderRef, order);
+    res.json(order);
+  } catch (e) {
+    try {
+      handleFirestoreError(e, OperationType.WRITE, `orders/${req.params.id}/chats`);
+    } catch (err) {
+      next(err);
     }
   }
-
-  order.updatedAt = new Date().toISOString();
-  db.orders[orderIndex] = order;
-  saveDB();
-  res.json(order);
 });
 
 // AI Optimization Link Endpoint (Uses Gemini API key)
@@ -559,3 +679,5 @@ async function startServer() {
 }
 
 startServer();
+
+export default app;
