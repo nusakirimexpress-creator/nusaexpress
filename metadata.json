@@ -1,6 +1,6 @@
 {
-  "name": "NusaKirim Jastip Shopee",
-  "description": "Platform Jasa Titip Pembelian Barang Shopee Hemat Terintegrasi oleh Jaringan Logistik NusaKirim.",
+  "name": "Jasa Pengiriman & Titip Beli Link",
+  "description": "Aplikasi jasa pengiriman dan titip beli dari marketplace Indonesia. Konsumen menempelkan link Shopee, Tokopedia, & TikTok Shop, dan data otomatis tersinkronisasi ke dashboard admin secara real-time.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

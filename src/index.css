@@ -1,7 +1,44 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Custom palette matching a warm, high-end editorial studio */
+  --color-studio-beige: #FAF9F6;
+  --color-studio-charcoal: #121212;
+  --color-studio-accent: #C5A880; /* Elegant soft gold */
+  --color-studio-terracotta: #D36B5C; /* Warm terracotta accent */
+  --color-studio-sage: #5F7D6D; /* Soft deep sage */
+}
+
+/* Smooth behaviors */
+html {
+  scroll-behavior: smooth;
+  background-color: var(--color-studio-beige);
+  color: var(--color-studio-charcoal);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background-color: var(--color-studio-accent);
+  color: var(--color-studio-charcoal);
+}
+
+/* Custom Scrollbar for modern feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F3F3EF;
+}
+::-webkit-scrollbar-thumb {
+  background: #D1D1C6;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-studio-accent);
 }
