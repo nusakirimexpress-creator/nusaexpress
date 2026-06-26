@@ -34,7 +34,9 @@ import {
   MapPin,
   Bell,
   Ticket,
-  QrCode
+  QrCode,
+  User,
+  LogOut
 } from 'lucide-react';
 
 import FloatingToast, { Toast } from './components/FloatingToast';
@@ -99,9 +101,9 @@ export default function App() {
       activeOrderDesc: "Punya pesanan? Klik tab di bawah untuk memantau status.",
       
       // Floating services row (Enjoy shopping & Tagihan)
-      enjoyShopping: "ENJOY SHOPPING",
+      enjoyShopping: "KIRIM PESANAN ANDA",
       enjoyShoppingSub: "Mulai Jastip Baru",
-      tagihanLapor: "TAGIHAN & LAPOR",
+      tagihanLapor: "LACAK PAKET",
       chatAdminLive: "Chat Admin Live",
       
       // Special Info Bar
@@ -230,9 +232,9 @@ export default function App() {
       activeOrderDesc: "有订单吗？点击下方标题栏即可监控订单状态。",
       
       // Floating services row (Enjoy shopping & Tagihan)
-      enjoyShopping: "享受购物",
+      enjoyShopping: "发送您的订单",
       enjoyShoppingSub: "开始新代购下单",
-      tagihanLapor: "账单与反馈",
+      tagihanLapor: "追踪包裹",
       chatAdminLive: "与在线客服沟通",
       
       // Special Info Bar
@@ -511,6 +513,7 @@ export default function App() {
   // Floating Toasts Center
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Status submission submit lock
@@ -906,24 +909,41 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
           <NusaKirimLogo size="md" layout="horizontal" />
 
           {/* Menu links in the center (Visible on md and up) */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-zinc-650">
-            <button 
-              onClick={() => handleScrollToSection('hero-portal')} 
-              className="hover:text-studio-accent transition-colors cursor-pointer text-zinc-600 hover:underline decoration-studio-accent decoration-2 underline-offset-4"
+          <nav className="hidden md:flex items-center gap-4 text-sm font-semibold text-zinc-650">
+            <button
+              onClick={() => {
+                const el = document.getElementById('order-form-anchor');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const input = document.getElementById('product-link-input');
+                if (input) setTimeout(() => input.focus(), 800);
+                addToast(
+                  language === 'zh'
+                    ? "请在下方填写您的代购订单表格！"
+                    : "Silakan isi formulir pesanan belanja Anda di bawah ini!",
+                  "success"
+                );
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-black tracking-wider bg-purple-100 hover:bg-purple-200 border border-purple-300 text-purple-950 flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95 uppercase font-sans"
             >
-              {t.navHome}
+              <ShoppingBag className="w-4 h-4 text-purple-700 animate-bounce" />
+              <span>{t.enjoyShopping}</span>
             </button>
-            <button 
-              onClick={() => handleScrollToSection('tentang-kami')} 
-              className="hover:text-studio-accent transition-colors cursor-pointer text-zinc-600 hover:underline decoration-studio-accent decoration-2 underline-offset-4"
+            
+            <button
+              onClick={() => {
+                setSelectedChatId(null);
+                setIsOpenChatWidget(true);
+                addToast(
+                  language === 'zh'
+                    ? "正在为您连接在线客服..."
+                    : "Menghubungkan Anda ke Layanan Pelanggan Live CS...",
+                  "success"
+                );
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-black tracking-wider bg-cyan-100 hover:bg-cyan-200 border border-cyan-300 text-cyan-950 flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95 uppercase font-sans"
             >
-              {t.navAbout}
-            </button>
-            <button 
-              onClick={() => handleScrollToSection('how-it-works')} 
-              className="hover:text-studio-accent transition-colors cursor-pointer text-zinc-600 hover:underline decoration-studio-accent decoration-2 underline-offset-4"
-            >
-              {t.navHow}
+              <MessageSquare className="w-4 h-4 text-cyan-700" />
+              <span>{t.tagihanLapor}</span>
             </button>
           </nav>
 
@@ -962,57 +982,46 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
               <HelpCircle className="w-3.5 h-3.5 text-studio-accent" />
               <span className="hidden sm:inline">{t.navGuide}</span>
             </button>
-
-            <div className="w-[1px] h-6 bg-zinc-250"></div>
-
-            {/* Admin toggle switch */}
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => {
-                if (isAdminMode) {
-                  setIsAdminMode(false);
-                  addToast(language === 'zh' ? '返回访客模式' : 'Kembali ke Halaman Pelanggan NusaKirim', 'info');
-                } else {
-                  // Reset states and present password challenge modal
-                  setAdminPasswordInput('');
-                  setPasswordError('');
-                  setShowPassword(false);
-                  setShowAdminPasswordModal(true);
-                }
-              }}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wide flex items-center gap-2 transition-all cursor-pointer border ${
-                isAdminMode
-                  ? 'bg-studio-terracotta text-white border-studio-terracotta shadow-md shadow-studio-terracotta/25'
-                  : 'bg-studio-charcoal text-white hover:bg-studio-charcoal/90 border-studio-charcoal shadow-sm'
-              }`}
-            >
-              <Shield className={`w-3.5 h-3.5 ${isAdminMode ? 'animate-pulse' : ''}`} />
-              <span>{isAdminMode ? (language === 'zh' ? '退出管理' : 'Keluar Admin') : `🔐 ${t.navAdmin}`}</span>
-              
-              {/* Counter status badge for unchecked submissions in header */}
-              {!isAdminMode && submissions.filter(s => s.status === 'pending').length > 0 && (
-                <span className="w-4.5 h-4.5 rounded-full bg-studio-terracotta text-[9px] text-white flex items-center justify-center font-mono font-bold animate-bounce">
-                  {submissions.filter(s => s.status === 'pending').length}
-                </span>
-              )}
-            </motion.button>
           </div>
         </div>
 
-        {/* Mobile Horizontal scroll menu (Visible ONLY on small mobile devices to give intuitive access) */}
+        {/* Mobile quick action bar (Sticky underneath main header) */}
         {!isAdminMode && (
-          <div className="flex md:hidden bg-zinc-100 border-t border-zinc-200/80 px-4 py-2 overflow-x-auto scrollbar-none gap-4 text-[11px] font-bold tracking-wide text-zinc-500 whitespace-nowrap">
-            <button onClick={() => handleScrollToSection('hero-portal')} className="active:text-studio-accent">
-              📍 {t.navHome}
+          <div className="flex md:hidden bg-white/95 backdrop-blur-md border-t border-zinc-200/80 p-2.5 gap-2.5 justify-center shadow-xs">
+            <button
+              onClick={() => {
+                const el = document.getElementById('order-form-anchor');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const input = document.getElementById('product-link-input');
+                if (input) setTimeout(() => input.focus(), 800);
+                addToast(
+                  language === 'zh'
+                    ? "请在下方填写您的代购订单表格！"
+                    : "Silakan isi formulir pesanan belanja Anda di bawah ini!",
+                  "success"
+                );
+              }}
+              className="flex-1 py-2 rounded-xl text-[11px] font-black tracking-wide bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 text-purple-950 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer font-sans uppercase shadow-xs"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-purple-700 animate-bounce" />
+              <span>{t.enjoyShopping}</span>
             </button>
-            <button onClick={() => handleScrollToSection('tentang-kami')} className="active:text-studio-accent">
-              ℹ️ {t.navAbout}
-            </button>
-            <button onClick={() => handleScrollToSection('how-it-works')} className="active:text-studio-accent">
-              💡 {t.navHow}
-            </button>
-            <button onClick={() => handleScrollToSection('logistics-faq')} className="active:text-studio-accent">
-              ❓ {t.navFaq}
+            
+            <button
+              onClick={() => {
+                setSelectedChatId(null);
+                setIsOpenChatWidget(true);
+                addToast(
+                  language === 'zh'
+                    ? "正在为您连接在线客服..."
+                    : "Menghubungkan Anda ke Layanan Pelanggan Live CS...",
+                  "success"
+                );
+              }}
+              className="flex-1 py-2 rounded-xl text-[11px] font-black tracking-wide bg-gradient-to-r from-cyan-50 to-cyan-100 border border-cyan-200 text-cyan-950 flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer font-sans uppercase shadow-xs"
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-cyan-700" />
+              <span>{t.tagihanLapor}</span>
             </button>
           </div>
         )}
@@ -1911,36 +1920,24 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                       <QrCode className="w-4.5 h-4.5 text-zinc-500 hover:text-zinc-800 transition-colors shrink-0" />
                     </div>
 
-                    {/* Notification & Cart Badges */}
-                    <div className="flex items-center gap-2.5 shrink-0">
+                    {/* User Profile Button */}
+                    <div className="flex items-center gap-2 shrink-0">
                       <button 
-                        onClick={() => addToast("Belum ada notifikasi baru untuk Anda saat ini.", "info")}
-                        className="relative p-2.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-full transition-all cursor-pointer"
+                        onClick={() => setShowProfileModal(true)}
+                        className="flex items-center gap-2.5 px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/10 active:scale-95 rounded-2xl transition-all cursor-pointer shadow-sm group"
+                        title={language === 'zh' ? '管理个人资料与切换账户' : 'Kelola Profil & Ganti Akun'}
                       >
-                        <Bell className="w-4.5 h-4.5 text-white" />
-                        <span className="absolute -top-1 -right-1 bg-[#ECC828] text-zinc-950 font-black text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center border border-red-650">
-                          3
-                        </span>
-                      </button>
-                      
-                      <button 
-                        onClick={() => {
-                          const el = document.getElementById('my-submissions-history');
-                          if (el) {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            addToast("Menampilkan Pelacakan Status & Nota Belanja Anda!", "info");
-                          } else {
-                            addToast("Belum ada riwayat pesanan lokal disimpan di browser Anda.", "info");
-                          }
-                        }}
-                        className="relative p-2.5 bg-white/10 hover:bg-white/20 active:scale-95 rounded-full transition-all cursor-pointer"
-                      >
-                        <ShoppingBag className="w-4.5 h-4.5 text-white" />
-                        {mySubmissions.length > 0 && (
-                          <span className="absolute -top-1 -right-1 bg-zinc-950 text-[#ECC828] font-black text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center border border-white">
-                            {mySubmissions.length}
-                          </span>
-                        )}
+                        <div className="w-7 h-7 bg-[#ECC828] text-zinc-950 rounded-xl flex items-center justify-center text-xs font-black shadow-md shrink-0 select-none group-hover:scale-105 transition-transform duration-200">
+                          {userProfile?.name ? userProfile.name.substring(0, 2).toUpperCase() : 'NK'}
+                        </div>
+                        <div className="text-left hidden xs:block">
+                          <p className="text-[8px] text-zinc-200/90 font-bold uppercase tracking-widest leading-none">
+                            {language === 'zh' ? '我的资料' : 'PROFIL SAYA'}
+                          </p>
+                          <h4 className="font-display font-black text-[11px] text-white mt-0.5 max-w-[110px] truncate leading-tight">
+                            {userProfile?.name || 'Mitra NK'}
+                          </h4>
+                        </div>
                       </button>
                     </div>
                   </div>
@@ -1963,48 +1960,6 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                       </p>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* ==================== A-POINTS COINS & VOUCHER DOCK CARD (ALFAGIFT STYLE) ==================== */}
-              <div className="max-w-5xl mx-auto px-4 -mt-4 relative z-40 select-none">
-                <div className="bg-white rounded-3xl border border-zinc-200/95 shadow-xl p-4.5 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  
-                  {/* 1. Profile / Greetings */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-red-50 text-[#E61C24] border border-red-200/40 rounded-2xl flex items-center justify-center text-base font-black italic">
-                      NK
-                    </div>
-                    <div className="text-left font-sans">
-                      <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider leading-none">PELANGGAN SETIA</p>
-                      <h4 className="font-display font-black text-sm text-zinc-800 mt-0.5 max-w-[150px] sm:max-w-xs truncate" title={userProfile?.name}>
-                        {userProfile ? userProfile.name : "Mitra NusaKirim"}
-                      </h4>
-                      {userProfile?.phone && (
-                        <p className="text-[10px] text-zinc-500 font-mono font-semibold mt-0.5">WhatsApp: {userProfile.phone}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right side info & actions */}
-                  <div className="flex flex-wrap items-center gap-3 font-sans">
-                    {userProfile?.address && (
-                      <div className="hidden md:block max-w-[280px] text-zinc-500 text-[11px] leading-tight text-left pr-4 border-r border-zinc-205">
-                        <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider block leading-none mb-1">ALAMAT KIRIM:</span>
-                        <span className="truncate block font-semibold text-zinc-700" title={userProfile.address}>{userProfile.address}</span>
-                      </div>
-                    )}
-                    {userProfile && (
-                      <button
-                        onClick={handleLogout}
-                        className="text-[10px] text-zinc-500 hover:text-[#E61C24] font-bold border border-zinc-200 hover:border-red-200 bg-zinc-50 hover:bg-red-50/50 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 cursor-pointer shadow-xs inline-flex items-center gap-1.5"
-                        title="Keluar / Ganti Akun"
-                      >
-                        🔄 Ganti Akun
-                      </button>
-                    )}
-                  </div>
-
                 </div>
               </div>
 
@@ -2091,7 +2046,7 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                   <span className="w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
                   <span className="w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
                   <span className="w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
-                  <span className="text-[10px] text-zinc-400 font-bold ml-1 hover:underline cursor-pointer" onClick={() => addToast("Membuka 10 halaman promo terbaik NusaKirim!", "info")}> Lihat Semua (10)</span>
+                  <span className="text-[10px] text-zinc-400 font-bold ml-1 hover:underline cursor-pointer" onClick={() => addToast(language === 'zh' ? "正在打开 NusaKirim 前 10 名最佳促销页面！" : "Membuka 10 halaman promo terbaik NusaKirim!", "info")}> {language === 'zh' ? '查看全部 (10)' : 'Lihat Semua (10)'}</span>
                 </div>
               </div>
 
@@ -2100,9 +2055,9 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                 <div className="flex items-center justify-between mb-4.5">
                   <h4 className="font-display font-black text-sm text-zinc-800 tracking-tight flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-[#E61C24] animate-pulse" />
-                    <span>Spesial di NusaKirim Express</span>
+                    <span>{language === 'zh' ? 'NusaKirim Express 特别服务' : 'Spesial di NusaKirim Express'}</span>
                   </h4>
-                  <span className="text-[10px] text-red-600 font-bold hover:underline cursor-pointer" onClick={() => handleScrollToSection('tentang-kami')}>Info Layanan</span>
+                  <span className="text-[10px] text-red-600 font-bold hover:underline cursor-pointer" onClick={() => handleScrollToSection('tentang-kami')}>{language === 'zh' ? '服务信息' : 'Info Layanan'}</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -2112,14 +2067,21 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     onClick={() => {
                       const el = document.getElementById('order-form-anchor');
                       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      addToast("Silakan isi formulir pesanan belanja Anda di bawah ini!", "success");
+                      const input = document.getElementById('product-link-input');
+                      if (input) setTimeout(() => input.focus(), 800);
+                      addToast(
+                        language === 'zh'
+                          ? "请在下方填写您的代购订单表格！"
+                          : "Silakan isi formulir pesanan belanja Anda di bawah ini!",
+                        "success"
+                      );
                     }}
                     className={`relative p-5 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100/70 border border-purple-200/50 flex flex-col justify-between items-start text-left min-h-[120px] shadow-xs active:scale-98 hover:shadow-md hover:border-purple-300 transition-all select-none cursor-pointer group w-full`}
                   >
                     <span className="text-2xl sm:text-3xl group-hover:scale-115 transition-transform duration-300">🛍️</span>
                     <div>
-                      <span className="block font-sans font-black text-[12px] sm:text-[13px] text-purple-950 uppercase tracking-tight">ENJOY SHOPPING</span>
-                      <span className="block text-[9px] sm:text-[10px] text-purple-600/90 font-bold mt-1 leading-tight">Mulai Jastip Baru</span>
+                      <span className="block font-sans font-black text-[12px] sm:text-[13px] text-purple-950 uppercase tracking-tight">{t.enjoyShopping}</span>
+                      <span className="block text-[9px] sm:text-[10px] text-purple-600/90 font-bold mt-1 leading-tight">{t.enjoyShoppingSub}</span>
                     </div>
                   </button>
 
@@ -2128,14 +2090,19 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     onClick={() => {
                       setSelectedChatId(null);
                       setIsOpenChatWidget(true);
-                      addToast("Menghubungkan Anda ke Layanan Pelanggan Live CS...", "success");
+                      addToast(
+                        language === 'zh'
+                          ? "正在为您连接在线客服..."
+                          : "Menghubungkan Anda ke Layanan Pelanggan Live CS...",
+                        "success"
+                      );
                     }}
                     className="relative p-5 rounded-2xl bg-gradient-to-br from-cyan-50 to-cyan-100/70 border border-cyan-200/50 flex flex-col justify-between items-start text-left min-h-[120px] shadow-xs active:scale-98 hover:shadow-md hover:border-cyan-300 transition-all select-none cursor-pointer group w-full"
                   >
                     <span className="text-2xl sm:text-3xl group-hover:scale-115 transition-transform duration-300">💬</span>
                     <div>
-                      <span className="block font-sans font-black text-[12px] sm:text-[13px] text-cyan-950 uppercase tracking-tight">TAGIHAN & LAPOR</span>
-                      <span className="block text-[9px] sm:text-[10px] text-cyan-600/90 font-bold mt-1 leading-tight">Chat Admin Live</span>
+                      <span className="block font-sans font-black text-[12px] sm:text-[13px] text-cyan-950 uppercase tracking-tight">{t.tagihanLapor}</span>
+                      <span className="block text-[9px] sm:text-[10px] text-cyan-600/90 font-bold mt-1 leading-tight">{t.chatAdminLive}</span>
                     </div>
                   </button>
 
@@ -2157,32 +2124,38 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-studio-accent/15 border border-studio-accent/20">
                           <Truck className="w-4 h-4 text-studio-accent" />
                           <span className="text-[10px] font-mono tracking-widest font-bold uppercase text-studio-charcoal">
-                            JASA TITIP BELANJA & KARGO AMAN
+                            {t.valuePropSub}
                           </span>
                         </div>
 
                         <h2 className="font-display font-black text-3xl sm:text-4xl tracking-tight text-studio-charcoal leading-tight">
-                          Formulir Jastip <br/>
-                          <span className="text-studio-accent">NusaKirim Express</span>
+                          {language === 'zh' ? (
+                            "NK Express 代购与货运申请表"
+                          ) : (
+                            <>
+                              Formulir Jastip <br/>
+                              <span className="text-studio-accent">NusaKirim Express</span>
+                            </>
+                          )}
                         </h2>
 
                         <div className="space-y-4 text-xs sm:text-sm text-zinc-600">
                           <p className="font-semibold text-zinc-850">
-                            Mudahnya titip beli barang dari mana saja dengan 2 langkah sederhana:
+                            {language === 'zh' ? '只需 2 个简单步骤，即可随时随地代购商品：' : 'Mudahnya titip beli barang dari mana saja dengan 2 langkah sederhana:'}
                           </p>
                           <ol className="space-y-2.5 pl-1">
                             <li className="flex items-start gap-2.5">
                               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#00AA13]/10 text-[#00AA13] text-[10px] font-bold shrink-0 mt-0.5">1</span>
-                              <span>Tempel link barang idaman Anda & isi formulir di samping.</span>
+                              <span>{t.valuePropStep1}</span>
                             </li>
                             <li className="flex items-start gap-2.5">
                               <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#00AA13]/10 text-[#00AA13] text-[10px] font-bold shrink-0 mt-0.5">2</span>
-                              <span>Admin kami akan mengecek, merincikan harga total, dan membuatkan invoice pemesanan.</span>
+                              <span>{t.valuePropStep2}</span>
                             </li>
                           </ol>
 
                           <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-zinc-700 italic">
-                            💡 <strong>Tips Lacak:</strong> Setelah tombol &quot;Kirim Pesanan&quot; diklik, tab chat pelacakan akan otomatis terbuka. Anda juga bebas mengobrol langsung dengan Admin di chat room tersebut.
+                            💡 <strong>{language === 'zh' ? '追踪小贴士:' : 'Tips Lacak:'}</strong> {language === 'zh' ? '点击“提交代购订单”按钮后，追踪聊天窗口将自动打开。您也可以在聊天室中直接与客服沟通。' : 'Setelah tombol "Kirim Pesanan" diklik, tab chat pelacakan akan otomatis terbuka. Anda juga bebas mengobrol langsung dengan Admin di chat room tersebut.'}
                           </div>
                         </div>
                       </div>
@@ -2196,7 +2169,7 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                             <div className="flex items-center gap-2">
                               <ShoppingBag className="w-5 h-5" />
                               <span className="font-display font-bold text-xs sm:text-sm tracking-wide">
-                                FORMULIR PEMESANAN JASTIP & KARGO
+                                {t.orderFormTitle}
                               </span>
                             </div>
                           </div>
@@ -2230,7 +2203,7 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                                 {/* 1. Shop Link product */}
                                 <div className="space-y-1.5">
                                   <label className="block text-xs uppercase tracking-wider font-semibold text-zinc-650 text-left">
-                                    Tempel Link Produk {marketingStyle.label} *
+                                    {t.linkInputLabel} ({marketingStyle.label})
                                   </label>
                                   <input
                                     id="product-link-input"
@@ -2238,36 +2211,38 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                                     required
                                     value={productUrl}
                                     onChange={(e) => setProductUrl(e.target.value)}
-                                    placeholder={`Tempel URL ${selectedMarketplace}... (contoh: https://${selectedMarketplace === 'lainnya' ? 'situsbelanja' : selectedMarketplace}.co.id/product)`}
+                                    placeholder={language === 'zh' ? `粘贴 ${selectedMarketplace === 'lainnya' ? '其他平台' : selectedMarketplace} 链接... 例如: https://${selectedMarketplace === 'lainnya' ? 'shopping' : selectedMarketplace}.com/product` : `Tempel URL ${selectedMarketplace}... (contoh: https://${selectedMarketplace === 'lainnya' ? 'situsbelanja' : selectedMarketplace}.co.id/product)`}
                                     className={`w-full text-xs sm:text-sm px-4 py-3 rounded-xl border bg-zinc-50/60 focus:bg-white text-studio-charcoal focus:outline-none transition-all font-mono placeholder:font-sans ${marketingStyle.borderColor}`}
                                   />
-                                  <p className="text-[10px] text-zinc-400 text-left">Pastikan link produk masih aktif dan stok tersedia.</p>
+                                  <p className="text-[10px] text-zinc-400 text-left">
+                                    {language === 'zh' ? '请确保商品链接仍有效且有库存。' : 'Pastikan link produk masih aktif dan stok tersedia.'}
+                                  </p>
                                 </div>
 
                                 {/* Dynamic User Profile Info (Pre-filled via Login Gate) */}
                                 <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-2xl text-left space-y-3 relative overflow-hidden">
                                   <div className="absolute right-3 top-3 inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2.5 py-1 rounded-full border border-emerald-200">
                                     <CheckCircle className="w-3.5 h-3.5" />
-                                    <span>Profil Terisi</span>
+                                    <span>{language === 'zh' ? '已填个人资料' : 'Profil Terisi'}</span>
                                   </div>
 
                                   <div className="flex items-center gap-1.5 text-[10px] uppercase font-black text-zinc-500 tracking-wider">
-                                    <span>📋 Detail Penerima & Pengiriman</span>
+                                    <span>{language === 'zh' ? '📋 收件人及寄送详情' : '📋 Detail Penerima & Pengiriman'}</span>
                                   </div>
                                   
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                                     <div>
-                                      <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">Nama Lengkap</span>
+                                      <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">{language === 'zh' ? '完整姓名' : 'Nama Lengkap'}</span>
                                       <span className="font-extrabold text-zinc-800">{customerName || userProfile?.name}</span>
                                     </div>
                                     <div>
-                                      <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">No. WhatsApp</span>
+                                      <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">{language === 'zh' ? 'WhatsApp 电话' : 'No. WhatsApp'}</span>
                                       <span className="font-mono font-bold text-zinc-800">{customerPhone || userProfile?.phone}</span>
                                     </div>
                                   </div>
 
                                   <div className="pt-2.5 border-t border-zinc-200 text-xs">
-                                    <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">Alamat Pengiriman</span>
+                                    <span className="text-[10px] text-zinc-400 block font-bold uppercase tracking-wider">{language === 'zh' ? '收货地址' : 'Alamat Pengiriman'}</span>
                                     <p className="font-semibold text-zinc-700 mt-0.5 leading-relaxed">{customerAddress || userProfile?.address}</p>
                                   </div>
                                 </div>
@@ -2275,7 +2250,7 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                                 {/* Qty Select Field */}
                                 <div className="space-y-1.5 text-left">
                                   <label className="block text-xs uppercase tracking-wider font-semibold text-zinc-650">
-                                    Jumlah Barang (Qty) *
+                                    {t.qtyLabel}
                                   </label>
                                   <input
                                     type="number"
@@ -2287,40 +2262,40 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                                   />
                                 </div>
 
-                          {/* 4. Notes Specifications */}
-                          <div className="space-y-1.5">
-                            <label className="block text-xs uppercase tracking-wider font-semibold text-zinc-650">
-                              Catatan Spesifikasi (Warna / Ukuran / Bubble Wrap)
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={notes}
-                              onChange={(e) => setNotes(e.target.value)}
-                              placeholder="Contoh: Tolong pilih warna Hitam cadangan Abu-abu, ukuran XL, minta bungkus kayu/extra bubble wrap agar aman."
-                              className="w-full text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50/60 focus:bg-white text-studio-charcoal focus:outline-none transition-all resize-none"
-                            />
-                          </div>
+                                {/* 4. Notes Specifications */}
+                                <div className="space-y-1.5 text-left">
+                                  <label className="block text-xs uppercase tracking-wider font-semibold text-zinc-650">
+                                    {t.notesLabel}
+                                  </label>
+                                  <textarea
+                                    rows={3}
+                                    value={notes}
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    placeholder={language === 'zh' ? '例如：请选择黑色，备选灰色，尺寸 XL，要求多层气泡膜/木箱包装以确保安全。' : 'Contoh: Tolong pilih warna Hitam cadangan Abu-abu, ukuran XL, minta bungkus kayu/extra bubble wrap agar aman.'}
+                                    className="w-full text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50/60 focus:bg-white text-studio-charcoal focus:outline-none transition-all resize-none"
+                                  />
+                                </div>
 
-                          {/* Button trigger */}
-                          <motion.button
-                            whileTap={{ scale: 0.98 }}
-                            type="submit"
-                            disabled={submitPending}
-                            className={`w-full py-3.5 rounded-xl font-bold font-display text-xs sm:text-sm tracking-wide text-white transition-all flex items-center justify-center gap-2 cursor-pointer ${marketingStyle.accentBg}`}
-                          >
-                            {submitPending ? (
-                              <>
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                <span>Sedang Mengirim Data...</span>
-                              </>
-                            ) : (
-                              <>
-                                <Truck className="w-4 h-4" />
-                                <span>Kirim Pengajuan Jasa Titip Beli</span>
-                              </>
-                            )}
-                          </motion.button>
-                        </form>
+                                {/* Button trigger */}
+                                <motion.button
+                                  whileTap={{ scale: 0.98 }}
+                                  type="submit"
+                                  disabled={submitPending}
+                                  className={`w-full py-3.5 rounded-xl font-bold font-display text-xs sm:text-sm tracking-wide text-white transition-all flex items-center justify-center gap-2 cursor-pointer ${marketingStyle.accentBg}`}
+                                >
+                                  {submitPending ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 animate-spin" />
+                                      <span>{language === 'zh' ? '正在提交申请数据...' : 'Sedang Mengirim Data...'}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Truck className="w-4 h-4" />
+                                      <span>{t.submitOrderBtn}</span>
+                                    </>
+                                  )}
+                                </motion.button>
+                              </form>
                       </div>
                     </div>
 
@@ -2358,13 +2333,15 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     <div className="lg:col-span-7 space-y-8">
                       <div>
                         <span className="text-[11px] font-mono tracking-widest font-bold text-[#D91E1E] uppercase">
-                          TENTANG NUSAKIRIM EXPRESS
+                          {language === 'zh' ? '关于 NUSAKIRIM EXPRESS' : 'TENTANG NUSAKIRIM EXPRESS'}
                         </span>
                         <h2 className="text-3xl font-display font-black text-studio-charcoal mt-1.5 tracking-tight leading-tight">
-                          Jembatan Belanja & Kargo Terpercaya Anda
+                          {language === 'zh' ? '您值得信赖的代购与货运桥梁' : 'Jembatan Belanja & Kargo Terpercaya Anda'}
                         </h2>
                         <p className="text-sm text-zinc-500 mt-2 font-normal leading-relaxed">
-                          NusaKirim didirikan untuk memecahkan dilema belanja lintas batas. Kami menyediakan alamat transit lokal di Indonesia, mengabaikan ketatnya regulasi pembayaran bank lokal, dan mengirimkan paket dengan penanganan prioritas.
+                          {language === 'zh' 
+                            ? 'NusaKirim 旨在解决跨国购物及本地货运中转难题。我们提供德尔纳特（Ternate）到索菲菲（Sofifi）等的高效安全中转，绕过复杂的付款和运输限制，给您最贴心的代收与货运 penanganan prioritas。' 
+                            : 'NusaKirim didirikan untuk memecahkan dilema belanja lintas batas. Kami menyediakan alamat transit lokal di Indonesia, mengabaikan ketatnya regulasi pembayaran bank lokal, dan mengirimkan paket dengan penanganan prioritas.'}
                         </p>
                       </div>
 
@@ -2375,10 +2352,12 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                             📦
                           </div>
                           <h4 className="font-display font-bold text-sm sm:text-base text-studio-charcoal">
-                            100% Pembelian Aman (Jastip)
+                            {language === 'zh' ? '100% 安全代购采购' : '100% Pembelian Aman (Jastip)'}
                           </h4>
                           <p className="text-xs text-zinc-500 leading-relaxed">
-                            Kami mengurus seluruh proses pemesanan, pengecekan ketersediaan stok, hingga pelunasan ke merchant. Cukup tempel link belanja, tim kami yang membelikan untuk Anda.
+                            {language === 'zh'
+                              ? '我们负责处理从下订单、确认商品规格到跟商家结算的全过程。您只需在这里提交购物链接，剩下繁琐的代购流程交由我们团队处理。'
+                              : 'Kami mengurus seluruh proses pemesanan, pengecekan ketersediaan stok, hingga pelunasan ke merchant. Cukup tempel link belanja, tim kami yang membelikan untuk Anda.'}
                           </p>
                         </div>
 
@@ -2388,10 +2367,12 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                             🛡️
                           </div>
                           <h4 className="font-display font-bold text-sm sm:text-base text-studio-charcoal">
-                            Konsolidasi & Re-Packing Gratis
+                            {language === 'zh' ? '免费合并包裹与安全包装' : 'Konsolidasi & Re-Packing Gratis'}
                           </h4>
                           <p className="text-xs text-zinc-500 leading-relaxed">
-                            Belanja dari banyak toko berbeda? Kami satukan semua kiriman Anda di satu paket besar berbalut bubble wrap tebal secara gratis demi memangkas biaya ongkos kirim.
+                            {language === 'zh'
+                              ? '从不同的多家在线店铺购物？我们免费为您合并包裹到一个大箱中，并使用气泡膜进行加固二次包装，最大程度节省运送成本。'
+                              : 'Belanja dari banyak toko berbeda? Kami satukan semua kiriman Anda di satu paket besar berbalut bubble wrap tebal secara gratis demi memangkas biaya ongkos kirim.'}
                           </p>
                         </div>
 
@@ -2401,10 +2382,12 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                             🚀
                           </div>
                           <h4 className="font-display font-bold text-sm sm:text-base text-studio-charcoal">
-                            Kargo Kilat Berasuransi
+                            {language === 'zh' ? '安全快速航空货运专线' : 'Kargo Kilat Berasuransi'}
                           </h4>
                           <p className="text-xs text-zinc-500 leading-relaxed">
-                            Kemitraan kargo udara eksklusif menjangkau Singapura, Malaysia, Taiwan, Hong Kong, dan rute domestik dengan perlindungan asuransi kehilangan barang hingga 100%.
+                            {language === 'zh'
+                              ? '极速航空与本土特快通道覆盖国内城市、多处集散中心，并提供全套物流安全跟进，保驾护航，让您的包裹准时且完整抵达。'
+                              : 'Kemitraan kargo udara eksklusif menjangkau Singapura, Malaysia, Taiwan, Hong Kong, dan rute domestik dengan perlindungan asuransi kehilangan barang hingga 100%.'}
                           </p>
                         </div>
 
@@ -2414,10 +2397,12 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                             💬
                           </div>
                           <h4 className="font-display font-bold text-sm sm:text-base text-studio-charcoal">
-                            Update & Respon WhatsApp Instan
+                            {language === 'zh' ? 'WhatsApp 实时通知与服务' : 'Update & Respon WhatsApp Instan'}
                           </h4>
                           <p className="text-xs text-zinc-500 leading-relaxed">
-                            Nikmati pelacakan transparan. Timbangan real, dokumentasi foto fisik sebelum dikirim, hingga update nomor resi pengiriman diteruskan langsung ke WhatsApp Anda.
+                            {language === 'zh'
+                              ? '享受完全透明的物流跟进。出库真实称重、发货前照片文档记录，以及每一个运单状态更新都将直接推送到您的手机 WhatsApp 上。'
+                              : 'Nikmati pelacakan transparan. Timbangan real, dokumentasi foto fisik sebelum dikirim, hingga update nomor resi pengiriman diteruskan langsung ke WhatsApp Anda.'}
                           </p>
                         </div>
                       </div>
@@ -2437,36 +2422,50 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                       <div className="lg:col-span-8 space-y-4">
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-100 border border-red-200 text-red-700 text-[10px] font-bold tracking-widest uppercase">
-                          ⚡ SOLUSI KIRIM LEBIH HEMAT
+                          {language === 'zh' ? '⚡ 节省运费方案' : '⚡ SOLUSI KIRIM LEBIH HEMAT'}
                         </span>
                         <h2 className="text-2xl sm:text-3xl font-display font-black text-studio-charcoal tracking-tight">
-                          Cara Kerja NK Express
+                          {t.caraKerjaTitle}
                         </h2>
                         <p className="text-xs sm:text-sm text-zinc-650 leading-relaxed font-semibold">
-                          NK Express membantu Anda menerima paket di Ternate dan mengirimkannya ke Sofifi. 
-                          Ongkos kirim dari Ternate ke Sofifi biasanya <span className="line-through text-red-500">Rp80.000 per kg</span>. 
-                          Dengan NK Express, cukup <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">Rp30.000 per kg</span>.
+                          {language === 'zh' ? (
+                            <>
+                              NK Express 帮助您在德尔纳特收包裹并转运到索菲菲。
+                              从德尔纳特到索菲菲的常规运费通常为 <span className="line-through text-red-500">每公斤 Rp80.000</span>。
+                              通过 NK Express，仅需 <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">每公斤 Rp30.000</span>。
+                            </>
+                          ) : (
+                            <>
+                              NK Express membantu Anda menerima paket di Ternate dan mengirimkannya ke Sofifi. 
+                              Ongkos kirim dari Ternate ke Sofifi biasanya <span className="line-through text-red-500">Rp80.000 per kg</span>. 
+                              Dengan NK Express, cukup <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">Rp30.000 per kg</span>.
+                            </>
+                          )}
                         </p>
                         <p className="text-xs text-zinc-500 leading-relaxed">
-                          Caranya sangat mudah: belanja online seperti biasa, isi alamat pengiriman dengan alamat gudang kami di Ternate, kirim screenshot bukti pesanan Anda ke WhatsApp admin, lalu santai dan ambil paket Anda di Sofifi ketika telah tiba!
+                          {language === 'zh' 
+                            ? '方法非常简单：照常在网上购物，收件地址填写我们在德尔纳特的仓库地址，然后将您的订单截图发送给我们的客服 WhatsApp 登记，最后在货物送达索菲菲后轻松提货即可！'
+                            : 'Caranya sangat mudah: belanja online seperti biasa, isi alamat pengiriman dengan alamat gudang kami di Ternate, kirim screenshot bukti pesanan Anda ke WhatsApp admin, lalu santai dan ambil paket Anda di Sofifi ketika telah tiba!'}
                         </p>
                       </div>
                       
                       {/* Interactive visually appealing price card comparing the savings */}
                       <div className="lg:col-span-4 bg-zinc-50 rounded-2xl border border-zinc-200/80 p-5 text-center select-none">
-                        <div className="text-[10px] font-mono font-bold text-zinc-400 tracking-wider uppercase mb-2">METODE BANDING ONGKIR / KG</div>
+                        <div className="text-[10px] font-mono font-bold text-zinc-400 tracking-wider uppercase mb-2">
+                          {language === 'zh' ? '每公斤运费对比' : 'METODE BANDING ONGKIR / KG'}
+                        </div>
                         <div className="space-y-3">
                           <div className="flex items-center justify-between text-xs px-2.5 py-1.5 bg-white border border-zinc-150 rounded-lg">
-                            <span className="text-zinc-500">Ongkir Umum Biasa</span>
+                            <span className="text-zinc-500">{language === 'zh' ? '常规普通运费' : 'Ongkir Umum Biasa'}</span>
                             <span className="font-bold text-red-500 line-through font-mono">Rp 80.000</span>
                           </div>
                           <div className="flex items-center justify-between text-xs px-2.5 py-2 bg-[#E61C24]/5 border border-red-200 rounded-lg">
-                            <span className="text-red-700 font-bold">Tarif Spesial NK Express</span>
+                            <span className="text-red-700 font-bold">{language === 'zh' ? 'NK Express 特惠价' : 'Tarif Spesial NK Express'}</span>
                             <span className="font-extrabold text-[#E61C24] font-mono text-sm animate-pulse">Rp 30.000</span>
                           </div>
                         </div>
                         <div className="text-[9px] text-zinc-500 font-medium mt-3 italic">
-                          * Lebih hemat 60%+ untuk pengiriman Bastiong ke Halmahera / Sofifi!
+                          {t.tarifNKSub}
                         </div>
                       </div>
                     </div>
@@ -2475,10 +2474,10 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                   {/* 3.3 Prosedur untuk Pelanggan */}
                   <div className="text-center max-w-2xl mx-auto mb-10">
                     <span className="text-[10px] font-mono tracking-widest font-bold text-[#E61C24] uppercase">
-                      PROSEDUR PELANGGAN (3.3)
+                      {t.prosedurTitle}
                     </span>
                     <h3 className="text-xl sm:text-2xl font-display font-black text-studio-charcoal mt-1 tracking-tight">
-                      4 Langkah Mudah Kirim & Beli
+                      {t.prosedurSub}
                     </h3>
                   </div>
 
@@ -2488,13 +2487,13 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     <div className="bg-white rounded-2xl p-6 border border-zinc-200 shadow-xs relative flex flex-col justify-between min-h-[170px] hover:border-zinc-300 hover:shadow-md transition-all">
                       <div>
                         <span className="font-mono text-[9px] font-extrabold tracking-wider text-[#E61C24] uppercase bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
-                          LANGKAH 1
+                          {language === 'zh' ? '步骤 1' : 'LANGKAH 1'}
                         </span>
                         <h4 className="font-display font-black text-sm text-studio-charcoal mt-3 mb-2">
-                          Belanja seperti biasa
+                          {language === 'zh' ? '轻松网络购物' : 'Belanja seperti biasa'}
                         </h4>
                         <p className="text-[11px] text-zinc-500 font-sans leading-relaxed">
-                          Belanja di Shopee / Tokopedia / TikTok Shop / Lazada seperti biasanya Anda belanja online harian.
+                          {t.step1Desc}
                         </p>
                       </div>
                       <span className="absolute bottom-4 right-4 text-2xl select-none opacity-50">🛍️</span>
@@ -2504,13 +2503,13 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     <div className="bg-white rounded-2xl p-6 border border-zinc-200 shadow-xs relative flex flex-col justify-between min-h-[170px] hover:border-zinc-300 hover:shadow-md transition-all">
                       <div>
                         <span className="font-mono text-[9px] font-extrabold tracking-wider text-purple-700 uppercase bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
-                          LANGKAH 2
+                          {language === 'zh' ? '步骤 2' : 'LANGKAH 2'}
                         </span>
                         <h4 className="font-display font-black text-sm text-studio-charcoal mt-3 mb-2">
-                          Isi alamat gudang kami
+                          {language === 'zh' ? '填写中转仓库地址' : 'Isi alamat gudang kami'}
                         </h4>
                         <p className="text-[11px] text-zinc-500 font-sans leading-relaxed">
-                          Gunakan alamat gudang kami di Ternate sebagai alamat pengiriman. Format nama penerima: <strong className="text-zinc-700 font-extrabold">NK-Nama Anda</strong>.
+                          {t.step2Desc}
                         </p>
                       </div>
                       <span className="absolute bottom-4 right-4 text-2xl select-none opacity-50">📍</span>
@@ -2520,13 +2519,13 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     <div className="bg-white rounded-2xl p-6 border border-zinc-200 shadow-xs relative flex flex-col justify-between min-h-[170px] hover:border-zinc-300 hover:shadow-md transition-all">
                       <div>
                         <span className="font-mono text-[9px] font-extrabold tracking-wider text-amber-700 uppercase bg-amber-50 px-2 py-0.5 rounded-md border border-amber-100">
-                          LANGKAH 3
+                          {language === 'zh' ? '步骤 3' : 'LANGKAH 3'}
                         </span>
                         <h4 className="font-display font-black text-sm text-studio-charcoal mt-3 mb-2">
-                          Kirim bukti pesanan
+                          {language === 'zh' ? '发送订单截图' : 'Kirim bukti pesanan'}
                         </h4>
                         <p className="text-[11px] text-zinc-500 font-sans leading-relaxed">
-                          Selesaikan pembayaran belanja, lalu screenshot rincian pesanan dan kirim langsung ke WhatsApp kami.
+                          {t.step3Desc}
                         </p>
                       </div>
                       <span className="absolute bottom-4 right-4 text-2xl select-none opacity-50">📲</span>
@@ -2536,13 +2535,13 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                     <div className="bg-white rounded-2xl p-6 border border-zinc-200 shadow-xs relative flex flex-col justify-between min-h-[170px] hover:border-zinc-300 hover:shadow-md transition-all">
                       <div>
                         <span className="font-mono text-[9px] font-extrabold tracking-wider text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                          LANGKAH 4
+                          {language === 'zh' ? '步骤 4' : 'LANGKAH 4'}
                         </span>
                         <h4 className="font-display font-black text-sm text-studio-charcoal mt-3 mb-2">
-                          Ambil paket di Sofifi
+                          {language === 'zh' ? '在索菲菲提货' : 'Ambil paket di Sofifi'}
                         </h4>
                         <p className="text-[11px] text-zinc-500 font-sans leading-relaxed">
-                          Kami akan memantau kedatangan di Ternate, melalukan cross-shipping cepat, dan mengabari begitu paket tiba di Sofifi.
+                          {t.step4Desc}
                         </p>
                       </div>
                       <span className="absolute bottom-4 right-4 text-2xl select-none opacity-50">🎁</span>
@@ -2558,15 +2557,15 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
                   
                   <div className="text-center max-w-2xl mx-auto mb-16">
                     <span className="text-[11px] font-mono tracking-widest font-bold text-studio-sage uppercase">
-                      PERTANYAAN UMUM (FAQ)
+                      {language === 'zh' ? '常见问题解答 (FAQ)' : 'PERTANYAAN UMUM (FAQ)'}
                     </span>
                     <h2 className="text-3xl font-display font-black text-studio-charcoal mt-1 tracking-tight">
-                      Butuh Informasi Tambahan?
+                      {language === 'zh' ? '需要更多服务说明吗？' : 'Butuh Informasi Tambahan?'}
                     </h2>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {LOGISTICS_FAQ.map((faq, idx) => (
+                    {LOGISTICS_FAQ[language].map((faq, idx) => (
                       <div key={idx} className="p-6 rounded-2xl bg-studio-beige/50 border border-zinc-200/80">
                         <h4 className="font-display font-bold text-base text-studio-charcoal mb-2 flex items-start gap-2">
                           <span className="text-studio-accent font-extrabold font-mono">Q:</span>
@@ -2595,20 +2594,68 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
             <div className="text-center md:text-left">
               <NusaKirimLogo size="sm" layout="horizontal" inverse={true} className="mb-2 justify-center md:justify-start" />
               <p className="text-xs text-zinc-500 mt-1">
-                Jembatan Belanja Tercepat & Terpercaya antar Marketplace Indonesia.
+                {language === 'zh' 
+                  ? '印尼各大电商平台之间最快、最值得信赖的代购代收转运桥梁。' 
+                  : 'Jembatan Belanja Tercepat & Terpercaya antar Marketplace Indonesia.'}
               </p>
             </div>
 
             {/* Direct Links */}
             <div className="flex flex-wrap gap-6 text-xs font-semibold justify-center">
-              <a href="#hero-portal" className="hover:text-white transition-colors">Tempel Link</a>
-              <a href="#how-it-works" className="hover:text-white transition-colors">Panduan</a>
-              <a href="#logistics-faq" className="hover:text-white transition-colors">Pertanyaan</a>
+              <a href="#hero-portal" className="hover:text-white transition-colors">
+                {language === 'zh' ? '粘贴链接' : 'Tempel Link'}
+              </a>
+              <a href="#how-it-works" className="hover:text-white transition-colors">
+                {language === 'zh' ? '使用指南' : 'Panduan'}
+              </a>
+              <a href="#logistics-faq" className="hover:text-white transition-colors">
+                {language === 'zh' ? '常见问题' : 'Pertanyaan'}
+              </a>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-between text-[11px] text-zinc-650 font-mono gap-4 text-center sm:text-left">
-            <p>© 2026 NusaKirim Express. Hak Cipta Dilindungi Undang-Undang.</p>
+          <div className="flex flex-col lg:flex-row items-center justify-between text-[11px] text-zinc-650 font-mono gap-4 text-center lg:text-left border-t border-zinc-800/80 pt-6">
+            <p>
+              {language === 'zh' 
+                ? '© 2026 NusaKirim Express。 版权所有。' 
+                : '© 2026 NusaKirim Express. Hak Cipta Dilindungi Undang-Undang.'}
+            </p>
+
+            {/* Extremely compact admin entry toggle at the bottom */}
+            <div className="flex items-center gap-2 justify-center py-1">
+              <span className="text-zinc-700 text-[10px] hidden sm:inline">
+                {language === 'zh' ? '后台入口：' : 'Akses:'}
+              </span>
+              <button
+                onClick={() => {
+                  if (isAdminMode) {
+                    setIsAdminMode(false);
+                    addToast(language === 'zh' ? '返回访客模式' : 'Kembali ke Halaman Pelanggan NusaKirim', 'info');
+                  } else {
+                    setAdminPasswordInput('');
+                    setPasswordError('');
+                    setShowPassword(false);
+                    setShowAdminPasswordModal(true);
+                  }
+                }}
+                className={`px-2 py-1 rounded-md text-[10px] font-bold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
+                  isAdminMode
+                    ? 'bg-red-950/50 hover:bg-red-900/40 text-red-200 border-red-800/40 shadow-inner'
+                    : 'bg-zinc-800/40 hover:bg-zinc-800/80 text-zinc-500 hover:text-zinc-350 border-zinc-700/30'
+                }`}
+                title={isAdminMode ? "Keluar dari mode admin" : "Masuk ke panel admin"}
+              >
+                <Shield className={`w-3 h-3 ${isAdminMode ? 'animate-pulse text-red-400' : 'text-zinc-600'}`} />
+                <span>{isAdminMode ? (language === 'zh' ? 'Keluar Admin' : 'Keluar Admin') : t.navAdmin || 'Admin Panel'}</span>
+                
+                {!isAdminMode && submissions.filter(s => s.status === 'pending').length > 0 && (
+                  <span className="px-1 text-[8px] rounded-full bg-studio-terracotta text-white font-mono font-bold min-w-3.5 h-3.5 flex items-center justify-center">
+                    {submissions.filter(s => s.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+            </div>
+
             <p>Kalau ada kiriman dari Ternate ke Sofifi, silakan hubungi kami</p>
           </div>
         </div>
@@ -2616,6 +2663,160 @@ Silakan konfirmasikan kelanjutan pemesanan jika estimasi sudah sesuai. Terima ka
 
       {/* 5. FLOWING TOASTS PORTAL */}
       <FloatingToast toasts={toasts} removeToast={removeToast} />
+
+      {/* 5.5 PROFIL PENGGUNA MODAL POPUP */}
+      <AnimatePresence>
+        {showProfileModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowProfileModal(false)}
+              className="absolute inset-0 bg-studio-charcoal/40 backdrop-blur-sm cursor-pointer"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white rounded-3xl p-6 sm:p-8 border border-zinc-200 shadow-2xl max-w-md w-full overflow-hidden text-left"
+            >
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="absolute top-4 right-4 text-zinc-400 hover:text-studio-charcoal cursor-pointer text-sm font-bold w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+              >
+                ✕
+              </button>
+
+              <div className="space-y-5">
+                <div className="flex items-center gap-3.5 pb-4 border-b border-zinc-100">
+                  <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-xl font-black text-[#E61C24] shrink-0 select-none">
+                    {userProfile?.name ? userProfile.name.substring(0, 2).toUpperCase() : 'NK'}
+                  </div>
+                  <div>
+                    <h3 className="font-display font-black text-lg text-studio-charcoal tracking-tight leading-tight">
+                      {language === 'zh' ? '管理个人资料' : 'Profil Pengguna'}
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">
+                      {language === 'zh' ? 'NusaKirim 尊贵用户' : 'Pelanggan Setia NusaKirim'}
+                    </p>
+                  </div>
+                </div>
+
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const name = (form.elements.namedItem('editName') as HTMLInputElement).value.trim();
+                    const phone = (form.elements.namedItem('editPhone') as HTMLInputElement).value.trim();
+                    const address = (form.elements.namedItem('editAddress') as HTMLTextAreaElement).value.trim();
+
+                    if (!name || !phone || !address) {
+                      addToast(language === 'zh' ? '请填写完整您的个人档案。' : 'Mohon lengkapi semua data profil Anda.', 'info');
+                      return;
+                    }
+
+                    try {
+                      const response = await fetch('/api/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, phone, address })
+                      });
+
+                      const result = await response.json();
+
+                      if (!response.ok || !result.success) {
+                        addToast(result.error || (language === 'zh' ? '更新档案失败' : 'Pembaluan profil gagal.'), 'info');
+                        return;
+                      }
+
+                      const profile = { name, phone, address };
+                      localStorage.setItem('nusakirim_user_profile', JSON.stringify(profile));
+                      
+                      setUserProfile(profile);
+                      setCustomerName(name);
+                      setCustomerPhone(phone);
+                      setCustomerAddress(address);
+
+                      addToast(language === 'zh' ? '个人档案更新成功！' : 'Profil Anda berhasil diperbarui!', 'success');
+                      setShowProfileModal(false);
+                    } catch (err) {
+                      console.error(err);
+                      addToast(language === 'zh' ? '无法连接到服务器' : 'Gagal menghubungi server.', 'info');
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase tracking-wider font-extrabold text-zinc-650">
+                      {t.nameLabel}
+                    </label>
+                    <input
+                      type="text"
+                      name="editName"
+                      required
+                      defaultValue={customerName}
+                      placeholder={t.namePlaceholder}
+                      className="w-full text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50/60 focus:bg-white text-studio-charcoal focus:outline-none transition-all font-sans font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase tracking-wider font-extrabold text-zinc-650">
+                      {t.phoneLabel}
+                    </label>
+                    <input
+                      type="tel"
+                      name="editPhone"
+                      required
+                      defaultValue={customerPhone}
+                      placeholder="Contoh: 08123456789"
+                      className="w-full text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50/60 focus:bg-white text-studio-charcoal focus:outline-none transition-all font-mono font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] uppercase tracking-wider font-extrabold text-zinc-650">
+                      {t.addressLabel}
+                    </label>
+                    <textarea
+                      name="editAddress"
+                      required
+                      rows={3}
+                      defaultValue={customerAddress}
+                      placeholder={t.addressPlaceholder}
+                      className="w-full text-xs sm:text-sm px-4 py-3 rounded-xl border border-zinc-200 bg-zinc-50/60 focus:bg-white text-studio-charcoal focus:outline-none transition-all font-sans font-semibold resize-none"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2.5">
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-[#E61C24] hover:bg-red-700 text-white font-bold font-display text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer active:scale-95 shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      <User className="w-4 h-4 text-white" />
+                      <span>{language === 'zh' ? '保存更改' : 'Simpan Perubahan'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleLogout();
+                        setShowProfileModal(false);
+                      }}
+                      className="w-full py-3 bg-zinc-100 hover:bg-red-50 text-zinc-600 hover:text-[#E61C24] border border-zinc-200 hover:border-red-200 font-bold font-display text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <LogOut className="w-4 h-4 text-zinc-500" />
+                      <span>{language === 'zh' ? '切换账户 / 退出' : 'Ganti Akun / Logout'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 6. CARA KERJA GUIDE MODAL POPUP */}
       <AnimatePresence>

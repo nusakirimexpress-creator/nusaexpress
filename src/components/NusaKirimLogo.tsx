@@ -1,4 +1,6 @@
 import React from 'react';
+// @ts-ignore
+import logoImg from '../assets/images/nusakirim_logo_user.jpg';
 
 interface NusaKirimLogoProps {
   layout?: 'horizontal' | 'vertical' | 'icon';
@@ -14,33 +16,32 @@ export default function NusaKirimLogo({
   inverse = false
 }: NusaKirimLogoProps) {
   
-  // Decide responsive heights for the emblem
-  const getEmblemSizeClass = () => {
+  // Decides absolute widths/heights to guarantee a perfect square (prevent "gepeng" / squishing)
+  const getPixelSize = () => {
     switch (size) {
-      case 'sm': return 'w-10 h-10';
-      case 'lg': return 'w-16 h-16';
-      case 'xl': return 'w-24 h-24';
+      case 'sm': return 40;
+      case 'lg': return 64;
+      case 'xl': return 96;
       case 'md':
-      default: return 'w-12 h-12';
+      default: return 48;
     }
   };
 
-  // Decide text size classes
-  const getTextSizeClass = () => {
-    switch (size) {
-      case 'sm': return 'text-lg';
-      case 'lg': return 'text-2xl';
-      case 'xl': return 'text-4xl';
-      case 'md':
-      default: return 'text-xl';
-    }
-  };
+  const pixelSize = getPixelSize();
 
   // Crisp Vector Emblem SVG of NusaKirim
+  // We explicitly define width, height, minWidth, minHeight, and aspect-ratio to prevent any browser flattening.
   const Emblem = (
     <svg 
       viewBox="0 0 100 100" 
-      className={`${getEmblemSizeClass()} shrink-0 select-none overflow-visible`}
+      width={pixelSize}
+      height={pixelSize}
+      style={{ 
+        minWidth: `${pixelSize}px`, 
+        minHeight: `${pixelSize}px`, 
+        aspectRatio: '1 / 1' 
+      }}
+      className="shrink-0 aspect-square object-contain select-none overflow-visible"
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
       id="nusakirim-logo-emblem"
@@ -49,57 +50,37 @@ export default function NusaKirimLogo({
       <g id="top-bridge-group">
         {/* Outer Red crescent dome */}
         <path 
-          d="M 12 48 A 38 38 0 0 1 88 48 C 76 34, 24 34, 12 48 Z" 
-          fill="#D91E1E" 
+          d="M 10 50 A 40 40 0 0 1 86 32.5 C 75 21, 44 23.5, 21.5 48.5 C 18 52.5, 14 52.5, 10 50 Z" 
+          fill="#E30613" 
         />
         
-        {/* White gap under top arch */}
+        {/* Solid red bridge arch */}
         <path 
-          d="M 14 48 C 22 36, 78 36, 86 48 C 74 41, 26 41, 14 48 Z" 
-          fill="white" 
+          d="M 26 53 C 41 38, 71 31, 92.5 55 C 89 45, 68 34.5, 43 43 C 33 47, 29 50.5, 26 53 Z" 
+          fill="#E30613" 
         />
         
-        {/* Slanted vertical bridge cables/hangers in Red */}
-        <g stroke="#D91E1E" strokeWidth="2.5" strokeLinecap="round">
-          {/* Bridge struts/suspender beams */}
-          <line x1="28" y1="46" x2="28" y2="40.5" />
-          <line x1="39" y1="47.5" x2="39" y2="38.5" />
-          <line x1="50" y1="48" x2="50" y2="38" />
-          <line x1="61" y1="47.5" x2="61" y2="38.5" />
-          <line x1="72" y1="46" x2="72" y2="40.5" />
+        {/* 4 Vertical bridge pillars / slits */}
+        <g stroke="white" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="61" y1="36" x2="61" y2="45.5" />
+          <line x1="70.5" y1="38.5" x2="70.5" y2="49" />
+          <line x1="80" y1="42.5" x2="80" y2="53.5" />
+          <line x1="88.5" y1="48" x2="88.5" y2="56.5" />
         </g>
-        
-        {/* Inner red suspension arch structure */}
-        <path 
-          d="M 21 47 C 32 37, 68 37, 79 47" 
-          stroke="#D91E1E" 
-          strokeWidth="3.5" 
-          strokeLinecap="round"
-          fill="none" 
-        />
-        
-        {/* Thick bridge bottom deck base in red */}
-        <path 
-          d="M 12 48 C 30 46.5, 70 46.5, 88 48" 
-          stroke="#D91E1E" 
-          strokeWidth="3.5" 
-          strokeLinecap="round"
-          fill="none" 
-        />
       </g>
       
       {/* 2. BOTTOM HEMISPHERE (BLACK MARINE TRANSPORT WAVES) */}
       <g id="bottom-wave-group">
         {/* Upper wave crest (Black/Charcoal) */}
         <path 
-          d="M 10 52 C 24 58, 44 47, 90 52 C 76 58, 50 56, 10 52 Z" 
-          fill={inverse ? '#FFFFFF' : '#1A1A1A'} 
+          d="M 15 61.5 C 32 68, 55 56.5, 92 60.5 C 75 58.5, 45 71.5, 15 61.5 Z" 
+          fill={inverse ? '#FFFFFF' : '#1E1E1C'} 
         />
         
         {/* Bottom deep wave base (Black/Charcoal) */}
         <path 
-          d="M 13 58 C 24 75, 76 75, 87 58 C 72 65, 28 65, 13 58 Z" 
-          fill={inverse ? '#FFFFFF' : '#1A1A1A'} 
+          d="M 21 70.5 C 31 80.5, 70 84.5, 90 64 C 72 72, 41 75.5, 21 70.5 Z" 
+          fill={inverse ? '#FFFFFF' : '#1E1E1C'} 
         />
       </g>
     </svg>
@@ -109,73 +90,34 @@ export default function NusaKirimLogo({
     return Emblem;
   }
 
-  // Horizontal logo alignment (Default for headers and standard menus)
-  if (layout === 'horizontal') {
-    return (
-      <div className={`flex items-center gap-3.5 ${className}`} id="nusakirim-logo-horizontal">
-        {Emblem}
-        
-        <div className="flex flex-col text-left justify-center select-none">
-          {/* Brand Name with red-black split */}
-          <div className="flex items-baseline">
-            <span className={`${getTextSizeClass()} font-display font-extrabold tracking-tight text-[#D91E1E]`}>
-              Nusa
-            </span>
-            <span className={`${getTextSizeClass()} font-display font-extrabold tracking-tight ${inverse ? 'text-white' : 'text-zinc-900'}`}>
-              Kirim
-            </span>
-          </div>
+  // Determine height of the logo image to prevent distortion (scaling height, let width be automatic)
+  const getLogoHeight = () => {
+    switch (size) {
+      case 'sm': return 36;
+      case 'lg': return 68;
+      case 'xl': return 110;
+      case 'md':
+      default: return 52;
+    }
+  };
 
-          {/* —— EXPRESS —— Section */}
-          <div className="flex items-center gap-1.5 w-full my-0.5">
-            <div className={`h-[1px] flex-grow ${inverse ? 'bg-zinc-700' : 'bg-zinc-250'}`} />
-            <span className={`text-[9px] font-sans font-extrabold tracking-[0.25em] ${inverse ? 'text-zinc-450' : 'text-zinc-650'}`}>
-              EXPRESS
-            </span>
-            <div className={`h-[1px] flex-grow ${inverse ? 'bg-zinc-700' : 'bg-zinc-250'}`} />
-          </div>
+  const logoHeight = getLogoHeight();
 
-          {/* Chinese sublabel pill */}
-          <div className="self-start mt-0.5">
-            <div className="bg-[#D91E1E] text-white rounded-md text-[9px] font-bold px-2 py-0.5 font-sans tracking-wide skew-x-[-10deg] inline-block shadow-sm">
-              群岛物流
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Vertical centered logo configuration (suited for footers and landing cards)
+  // Return the perfect user-uploaded brand logo image to ensure 100% accurate visual representation
   return (
-    <div className={`flex flex-col items-center text-center ${className}`} id="nusakirim-logo-vertical">
-      {Emblem}
-      
-      <div className="flex flex-col items-center mt-3 select-none">
-        {/* Brand Name */}
-        <div className="flex items-baseline justify-center">
-          <span className={`${getTextSizeClass()} font-display font-black tracking-tight text-[#D91E1E]`}>
-            Nusa
-          </span>
-          <span className={`${getTextSizeClass()} font-display font-black tracking-tight ${inverse ? 'text-white' : 'text-zinc-900'}`}>
-            Kirim
-          </span>
-        </div>
-
-        {/* EXPRESS */}
-        <div className="flex items-center gap-2 w-32 my-1">
-          <div className={`h-[1px] flex-grow ${inverse ? 'bg-zinc-700' : 'bg-zinc-250'}`} />
-          <span className={`text-[9px] font-sans font-black tracking-[0.3em] ${inverse ? 'text-zinc-450' : 'text-zinc-600'}`}>
-            EXPRESS
-          </span>
-          <div className={`h-[1px] flex-grow ${inverse ? 'bg-zinc-700' : 'bg-zinc-250'}`} />
-        </div>
-
-        {/* Red Pill */}
-        <div className="bg-[#D91E1E] text-white rounded-md text-[9px] font-extrabold px-3 py-0.5 font-sans tracking-widest skew-x-[-10deg] inline-block mt-0.5 shadow-sm">
-          群岛物流
-        </div>
-      </div>
+    <div className={`flex items-center justify-center ${className}`} id={`nusakirim-logo-${layout}`}>
+      <img
+        src={logoImg}
+        alt="NusaKirim Express"
+        referrerPolicy="no-referrer"
+        className="object-contain h-auto shrink-0 select-none pointer-events-none"
+        style={{
+          height: `${logoHeight}px`,
+          maxHeight: `${logoHeight}px`,
+          width: 'auto',
+          maxWidth: '100%',
+        }}
+      />
     </div>
   );
 }
